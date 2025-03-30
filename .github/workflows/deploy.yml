@@ -51,12 +51,25 @@ jobs:
           cp deployment/index.py deploy-package/api/
           touch deploy-package/api/__init__.py
 
-          # 直接复制后端 requirements.txt 和 app 目录
-          cp backend/requirements.txt deploy-package/
-
+          # 确保 app 目录存在
           if [ -d "backend/app" ]; then
             cp -r backend/app deploy-package/
+          else
+            mkdir -p deploy-package/app
+            touch deploy-package/app/__init__.py
           fi
+
+          # 处理 requirements.txt
+          cp backend/requirements.txt deploy-package/
+
+          # 确保 requirements.txt 包含 mangum 依赖
+          if ! grep -q "mangum" deploy-package/requirements.txt; then
+            echo "mangum>=0.17.0" >> deploy-package/requirements.txt
+          fi
+
+          # 打印 requirements.txt 内容以验证
+          echo "Requirements.txt 内容:"
+          cat deploy-package/requirements.txt
 
           # 复制前端文件
           cp -r frontend/* deploy-package/frontend/
