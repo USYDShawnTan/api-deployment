@@ -64,13 +64,13 @@ jobs:
           if [ ! -f merged-project/backend/app/index.py ]; then
             echo "创建app/index.py文件"
             mkdir -p merged-project/backend/app
-            cat > merged-project/backend/app/index.py << 'EOF'
-from app.main import app
+            cat > merged-project/backend/app/index.py << EOF
+            from app.main import app
 
-# 为Vercel Serverless Functions 导出处理函数
-# 这是Vercel Python运行时所需的
-handler = app
-EOF
+            # 为Vercel Serverless Functions导出处理函数
+            # 这是Vercel Python运行时所需的
+            handler = app
+            EOF
           fi
           
           # 阻止生成__pycache__目录
