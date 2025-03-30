@@ -67,6 +67,15 @@ jobs:
           starlette==0.27.0
           EOF
 
+          # 初始化Git仓库以解决"not a git repository"错误
+          cd merged-project
+          git init
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add .
+          git commit -m "Initial commit for deployment"
+          cd ..
+
           # 调试输出
           echo "最终部署文件结构:"
           ls -la merged-project/
