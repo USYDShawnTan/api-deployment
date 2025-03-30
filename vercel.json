@@ -3,11 +3,12 @@
   "regions": ["sin1"],
   "builds": [
     {
-      "src": "api/run.py",
+      "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
-        "runtime": "python3.10"
+        "runtime": "python3.10",
+        "includeFiles": ["api/**", "api/requirements.txt"]
       }
     },
     {
@@ -18,7 +19,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/run.py"
+      "dest": "/api/index.py"
     },
     {
       "handle": "filesystem"
@@ -27,5 +28,8 @@
       "src": "/(.*)",
       "dest": "/public/$1"
     }
-  ]
+  ],
+  "env": {
+    "PYTHONPATH": "."
+  }
 }
