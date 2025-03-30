@@ -62,30 +62,6 @@ jobs:
           ls -la
           ls -la api/
 
-      # 生成 Vercel 配置文件（如果不存在）
-      - name: Create Vercel configuration file
-        run: |
-          if [ ! -f "vercel.json" ]; then
-            cat > vercel.json << 'EOL'
-            {
-              "version": 2,
-              "buildCommand": "cd api && npm install && npm run build",
-              "outputDirectory": ".",
-              "rewrites": [
-                { "source": "/api/(.*)", "destination": "/api/$1" },
-                { "source": "/(.*)", "destination": "/$1" }
-              ],
-              "env": {
-                "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
-                "MONGODB_DB_NAME": "${{ secrets.MONGODB_DB_NAME }}",
-                "API_ACCESS_PASSWORD": "${{ secrets.API_ACCESS_PASSWORD }}",
-                "NODE_ENV": "production",
-                "REACT_APP_API_ACCESS_PASSWORD": "${{ secrets.API_ACCESS_PASSWORD }}"
-              }
-            }
-            EOL
-          fi
-
       # 安装 Vercel CLI
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
