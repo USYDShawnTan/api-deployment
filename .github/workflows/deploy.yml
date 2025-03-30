@@ -22,7 +22,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.9"
 
       # 克隆前端仓库
       - name: Clone Frontend Repository
@@ -50,6 +50,20 @@ jobs:
           mkdir -p api
           # 直接复制后端仓库中的所有内容到api目录
           cp -r backend-repo/* api/
+          # 创建.vercel/project.json文件以指定Python版本
+          mkdir -p .vercel
+          echo '{"projectSettings":{"framework":null,"buildCommand":null,"devCommand":null,"outputDirectory":null,"rootDirectory":null,"installCommand":null,"ignoreCommand":null,"directoryListing":false,"nodeVersion":"18","analyticsId":null,"autoAssignCustomDomains":true,"enableUserLambda":true,"commandForIgnore":null,"devCommandRunsRewriter":null,"functionsRegion":"sin1","functions":{"running":{"runtime":"python3.9","memory":1024,"maxDuration":10}}}}' > .vercel/project.json
+          # 创建requirements.txt备份并确保版本兼容
+          cp api/requirements.txt api/requirements.original.txt
+          # 确保兼容的依赖版本
+          cat > api/requirements.txt << EOF
+fastapi==0.95.2
+uvicorn==0.22.0
+pydantic==1.10.8
+python-dotenv==1.0.0
+typing-extensions==4.6.3
+starlette==0.27.0
+EOF
 
       # 安装Vercel CLI
       - name: Install Vercel CLI
