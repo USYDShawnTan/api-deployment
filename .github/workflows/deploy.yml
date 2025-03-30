@@ -41,12 +41,22 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Check if requirements.txt exists
+        id: check-requirements
+        run: |
+          if [ -f "backend/requirements.txt" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: "backend/requirements.txt"
+          # 只有当 requirements.txt 文件存在时才使用缓存
+          cache: ${{ steps.check-requirements.outputs.exists == 'true' && 'pip' || 'none' }}
+          cache-dependency-path: ${{ steps.check-requirements.outputs.exists == 'true' && 'backend/requirements.txt' || '' }}
 
       - name: Log Deployment Start
         run: |
@@ -66,8 +76,24 @@ jobs:
           # Copy API files
           cp deployment/index.py deploy-package/api/
           touch deploy-package/api/__init__.py
-          cp -r backend/app deploy-package/
-          cp backend/requirements.txt deploy-package/
+
+          # 确保目录存在后再复制
+          if [ -d "backend/app" ]; then
+            cp -r backend/app deploy-package/
+          else
+            mkdir -p deploy-package/app
+          fi
+
+          # 确保 requirements.txt 存在
+          if [ -f "backend/requirements.txt" ]; then
+            cp backend/requirements.txt deploy-package/
+          else
+            echo "fastapi>=0.95.0" > deploy-package/requirements.txt
+            echo "uvicorn>=0.21.1" >> deploy-package/requirements.txt
+            echo "motor>=3.1.1" >> deploy-package/requirements.txt
+            echo "python-dotenv>=1.0.0" >> deploy-package/requirements.txt
+            echo "pydantic>=2.0.0" >> deploy-package/requirements.txt
+          fi
 
           # Copy frontend files
           cp -r frontend/* deploy-package/frontend/
@@ -86,6 +112,7 @@ jobs:
         run: npm install -g vercel@latest
 
       - name: Deploy to Vercel
+        id: deploy
         run: |
           cd deploy-package
 
@@ -101,11 +128,13 @@ jobs:
             -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
             -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}"
 
+          # 保存部署状态到输出变量
+          echo "status=$?" >> $GITHUB_OUTPUT
+
       - name: Handle Deployment Result
         if: always()
         run: |
-          DEPLOY_STATUS=$?
-          if [ $DEPLOY_STATUS -eq 0 ]; then
+          if [ ${{ steps.deploy.outputs.status }} -eq 0 ]; then
             echo "✅ Deployment successful"
             if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
               curl -X POST -H "Content-Type: application/json" \
