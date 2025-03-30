@@ -21,9 +21,6 @@
     }
   },
   "env": {
-    "PYTHON_VERSION": "3.10",
-    "MONGODB_URI": "@mongodb_uri",
-    "MONGODB_DB_NAME": "@mongodb_db_name",
-    "API_ACCESS_PASSWORD": "@api_access_password"
+    "PYTHON_VERSION": "3.10"
   }
 }
