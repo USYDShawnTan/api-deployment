@@ -1,16 +1,29 @@
 {
   "version": 2,
-  "buildCommand": "cd api && npm install && npm run build",
+  "buildCommand": "",
   "outputDirectory": ".",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/$1" }
+  "installCommand": "",
+  "regions": ["sin1"],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/run.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
   ],
+  "functions": {
+    "api/run.py": {
+      "runtime": "python3.10",
+      "memory": 1024
+    }
+  },
   "env": {
-    "MONGODB_URI": "from-workflow-secret",
-    "MONGODB_DB_NAME": "from-workflow-secret",
-    "API_ACCESS_PASSWORD": "from-workflow-secret",
-    "NODE_ENV": "production",
-    "REACT_APP_API_ACCESS_PASSWORD": "from-workflow-secret"
+    "PYTHON_VERSION": "3.10",
+    "MONGODB_URI": "@mongodb_uri",
+    "MONGODB_DB_NAME": "@mongodb_db_name",
+    "API_ACCESS_PASSWORD": "@api_access_password"
   }
-} 
+}

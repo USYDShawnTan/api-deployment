@@ -8,7 +8,7 @@
 
 1. 前端仓库 (`USYDShawnTan/api-frontend`) 更新时触发部署
 2. 后端仓库 (`USYDShawnTan/api-backend`) 更新时触发部署
-3. 也可以通过此仓库的 Actions 页面手动触发部署
+3. 也可以通过此仓库的 Actions 页面手动触发部署，自动也行
 
 ## 工作流程
 
@@ -16,28 +16,7 @@
 2. 此仓库的工作流会响应该事件，拉取最新代码
 3. 合并前端和后端代码后部署到 Vercel
 
-## 初始设置
-
-### 添加必要的 Secrets
-
-在此仓库的 Settings -> Secrets and variables -> Actions 中添加以下 secrets:
-
-1. `PAT_TOKEN` - GitHub 个人访问令牌，需要有权访问前端和后端私有仓库
-2. `VERCEL_TOKEN` - Vercel API 令牌
-3. `MONGODB_URI` - MongoDB 连接字符串，格式如：`mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority`
-4. `MONGODB_DB_NAME` - MongoDB 数据库名称，例如：`api_catalog`
-5. `API_ACCESS_PASSWORD` - API 访问密码，用于保护 API 端点
-
-这些环境变量在部署过程中会传递给 Vercel，确保后端能够正确连接到 MongoDB 数据库并进行身份验证。
-
-### 前端和后端仓库设置
-
-在前端和后端仓库中，需要添加以下文件和 secret:
-
-1. 在 `.github/workflows/` 目录下添加 `trigger-deployment.yml` 文件
-2. 添加 `PAT_TOKEN` secret
-
-## 文件结构
+## 仓库结构
 
 ```
 api-deployment/
@@ -59,20 +38,22 @@ api-deployment/
 
 ## 环境变量说明
 
-### 后端环境变量
+API_ACCESS_PASSWORD
 
-| 环境变量              | 说明               | 示例值                                                                         |
-| --------------------- | ------------------ | ------------------------------------------------------------------------------ |
-| `MONGODB_URI`         | MongoDB 连接字符串 | `mongodb+srv://user:password@cluster.mongodb.net/?retryWrites=true&w=majority` |
-| `MONGODB_DB_NAME`     | MongoDB 数据库名称 | `api_catalog`                                                                  |
-| `API_ACCESS_PASSWORD` | API 访问密码       | `yourSecurePassword`                                                           |
-| `NODE_ENV`            | 环境标识           | `production`                                                                   |
+BACKEND_REPO
 
-### 前端环境变量
+FRONTEND_REPO
 
-前端应用需要知道 API 访问密码来请求数据：
+MONGODB_DB_NAME
 
-| 环境变量                        | 说明         | 示例值                              |
-| ------------------------------- | ------------ | ----------------------------------- |
-| `REACT_APP_API_ACCESS_PASSWORD` | API 访问密码 | 与后端的 `API_ACCESS_PASSWORD` 相同 |
+MONGODB_URI
 
+PAT_TOKEN
+
+REACT_APP_API_URL
+
+VERCEL_ORG_ID
+
+VERCEL_PROJECT_ID
+
+VERCEL_TOKEN

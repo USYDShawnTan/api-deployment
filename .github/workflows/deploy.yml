@@ -2,71 +2,98 @@ name: Deploy to Vercel
 
 on:
   repository_dispatch:
-    types: [frontend-update, backend-update]
+    types: [frontend-updated, backend-updated]
   workflow_dispatch:
     inputs:
       deploy_type:
-        description: "手动触发部署类型"
+        description: "Type of deployment"
         required: true
-        default: "all"
+        default: "full"
         type: choice
         options:
-          - all
-          - frontend
-          - backend
+          - full
+          - frontend-only
+          - backend-only
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 获取前端代码
-      - name: Checkout Frontend Repository
-        uses: actions/checkout@v3
-        if: github.event.action == 'frontend-update' || github.event.inputs.deploy_type == 'frontend' || github.event.inputs.deploy_type == 'all' || github.event.action == null
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          repository: USYDShawnTan/api-frontend
-          token: ${{ secrets.PAT_TOKEN }}
-          path: frontend
+          node-version: "16"
 
-      # 获取后端代码
-      - name: Checkout Backend Repository
-        uses: actions/checkout@v3
-        if: github.event.action == 'backend-update' || github.event.inputs.deploy_type == 'backend' || github.event.inputs.deploy_type == 'all' || github.event.action == null
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          repository: USYDShawnTan/api-backend
-          token: ${{ secrets.PAT_TOKEN }}
-          path: backend
+          python-version: "3.10"
 
-      # 设置部署结构
-      - name: Set up deployment structure
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 7
+          run_install: false
+
+      - name: Clone frontend repository
         run: |
-          # 创建部署目录结构
+          git clone https://${{ secrets.PAT_TOKEN }}@github.com/${{ secrets.FRONTEND_REPO }} frontend
+        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
+
+      - name: Clone backend repository
+        run: |
+          git clone https://${{ secrets.PAT_TOKEN }}@github.com/${{ secrets.BACKEND_REPO }} backend
+        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: |
+          pnpm install
+        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          pnpm run build
+        env:
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
+
+      - name: Move frontend build to deployment directory
+        run: |
+          mkdir -p public
+          cp -r frontend/build/* public/
+        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
+
+      - name: Copy backend files to api directory
+        run: |
           mkdir -p api
+          cp -r backend/* api/
+          cp -r backend/.env api/
+        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
-          # 将前端文件复制到根目录
-          if [ -d "frontend" ]; then
-            cp -r frontend/* ./
-            rm -rf frontend
-          fi
+      - name: Configure backend environment variables
+        run: |
+          echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> api/.env
+          echo "MONGODB_DB_NAME=${{ secrets.MONGODB_DB_NAME }}" >> api/.env
+          echo "API_ACCESS_PASSWORD=${{ secrets.API_ACCESS_PASSWORD }}" >> api/.env
+        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
-          # 将后端文件复制到 /api 目录下
-          if [ -d "backend" ]; then
-            cp -r backend/* api/
-            rm -rf backend
-          fi
-
-          # 确保部署目录存在所有必要文件
-          ls -la
-          ls -la api/
-
-      # 安装 Vercel CLI
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      # 部署到 Vercel
       - name: Deploy to Vercel
         run: |
-          vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
+          vercel --token ${{ secrets.VERCEL_TOKEN }} --yes --prod
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
