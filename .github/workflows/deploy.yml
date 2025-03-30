@@ -1,179 +1,96 @@
 name: Deploy to Vercel
 
 on:
-  push:
-    branches:
-      - main
+  repository_dispatch:
+    types: [frontend-update, backend-update]
   workflow_dispatch:
     inputs:
-      deploy_message:
-        description: "部署说明"
-        required: false
-        default: "手动触发部署"
+      deploy_type:
+        description: "手动触发部署类型"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - frontend
+          - backend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Deployment Repository
-        uses: actions/checkout@v4
-        with:
-          path: deployment
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
+      # 获取前端代码
       - name: Checkout Frontend Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+        if: github.event.action == 'frontend-update' || github.event.inputs.deploy_type == 'frontend' || github.event.inputs.deploy_type == 'all' || github.event.action == null
         with:
-          repository: ${{ secrets.FRONTEND_REPO }}
+          repository: USYDShawnTan/api-frontend
           token: ${{ secrets.PAT_TOKEN }}
           path: frontend
-          fetch-depth: 1
 
+      # 获取后端代码
       - name: Checkout Backend Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
+        if: github.event.action == 'backend-update' || github.event.inputs.deploy_type == 'backend' || github.event.inputs.deploy_type == 'all' || github.event.action == null
         with:
-          repository: ${{ secrets.BACKEND_REPO }}
+          repository: USYDShawnTan/api-backend
           token: ${{ secrets.PAT_TOKEN }}
           path: backend
-          fetch-depth: 1
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Prepare Project Structure
+      # 设置部署结构
+      - name: Set up deployment structure
         run: |
-          # 创建基本部署结构
-          mkdir -p deploy-package/api
-          mkdir -p deploy-package/frontend
-          
-          # 查看后端结构
-          echo "后端仓库结构:"
-          find backend -type f | grep -v "__pycache__" | sort
-          
-          # 复制FastAPI入口文件到API目录
-          cp deployment/index.py deploy-package/api/
-          touch deploy-package/api/__init__.py
-          
-          # 复制后端文件 - 更全面地复制所有必要文件
-          # 1. 复制整个app目录及其所有内容到根目录和API目录
-          if [ -d "backend/app" ]; then
-            echo "复制后端app目录..."
-            cp -r backend/app deploy-package/
-            
-            # 确保API可以直接访问app模块
-            cp -r backend/app/* deploy-package/api/ 2>/dev/null || true
-            
-            # 创建符号链接以确保导入路径正确
-            cd deploy-package
-            for dir in $(find app -type d); do
-              mkdir -p api/$dir
-            done
-            cd ..
-          else
-            echo "警告: 后端app目录不存在!"
-            mkdir -p deploy-package/app
-            touch deploy-package/app/__init__.py
-          fi
-          
-          # 2. 复制其他关键后端文件
-          if [ -f "backend/run.py" ]; then
-            cp backend/run.py deploy-package/
-          fi
-          
-          if [ -f "backend/.env" ]; then
-            cp backend/.env deploy-package/
-          fi
-          
-          # 3. 优化requirements.txt - 只保留必要依赖
-          cat > deploy-package/requirements.txt << EOL
-fastapi==0.103.1
-uvicorn==0.23.2
-motor==3.2.0
-python-dotenv==1.0.0
-pydantic==2.3.0
-starlette==0.27.0
-EOL
-          
-          # 复制前端文件
-          cp -r frontend/* deploy-package/frontend/
-          
-          # 复制Vercel配置
-          cp deployment/vercel.json deploy-package/
-          
-          # 在API目录中创建一个简单的requirements.txt指向主要的requirements.txt
-          echo "-r ../requirements.txt" > deploy-package/api/requirements.txt
-          
-          # 显示部署包的完整结构
-          echo "=== 最终部署包结构 ==="
-          find deploy-package -type f -o -type d | grep -v "node_modules" | sort
-          
-          # 显示API目录内容
-          echo "=== API目录内容 ==="
-          find deploy-package/api -type f | sort
-          
-          # 显示requirements.txt内容
-          echo "=== Requirements.txt内容 ==="
-          cat deploy-package/requirements.txt
+          # 创建部署目录结构
+          mkdir -p api
 
+          # 将前端文件复制到根目录
+          if [ -d "frontend" ]; then
+            cp -r frontend/* ./
+            rm -rf frontend
+          fi
+
+          # 将后端文件复制到 /api 目录下
+          if [ -d "backend" ]; then
+            cp -r backend/* api/
+            rm -rf backend
+          fi
+
+          # 确保部署目录存在所有必要文件
+          ls -la
+          ls -la api/
+
+      # 生成 Vercel 配置文件（如果不存在）
+      - name: Create Vercel configuration file
+        run: |
+          if [ ! -f "vercel.json" ]; then
+            cat > vercel.json << 'EOL'
+            {
+              "version": 2,
+              "buildCommand": "cd api && npm install && npm run build",
+              "outputDirectory": ".",
+              "rewrites": [
+                { "source": "/api/(.*)", "destination": "/api/$1" },
+                { "source": "/(.*)", "destination": "/$1" }
+              ],
+              "env": {
+                "MONGODB_URI": "${{ secrets.MONGODB_URI }}",
+                "MONGODB_DB_NAME": "${{ secrets.MONGODB_DB_NAME }}",
+                "API_ACCESS_PASSWORD": "${{ secrets.API_ACCESS_PASSWORD }}",
+                "NODE_ENV": "production",
+                "REACT_APP_API_ACCESS_PASSWORD": "${{ secrets.API_ACCESS_PASSWORD }}"
+              }
+            }
+            EOL
+          fi
+
+      # 安装 Vercel CLI
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
+      # 部署到 Vercel
       - name: Deploy to Vercel
-        id: deploy
         run: |
-          cd deploy-package
-
-          # 创建 Vercel 项目配置
-          mkdir -p .vercel
-          echo "{\"orgId\":\"${{ secrets.VERCEL_ORG_ID }}\",\"projectId\":\"${{ secrets.VERCEL_PROJECT_ID }}\"}" > .vercel/project.json
-
-          # 验证 vercel.json 配置文件格式
-          cat vercel.json
-          echo "正在验证 vercel.json..."
-
-          # 检查 vercel.json 配置是否有效
-          if ! jq empty vercel.json 2>/dev/null; then
-            echo "错误: vercel.json 不是有效的 JSON 格式"
-            exit 1
-          fi
-
-          # 部署到 Vercel
-          echo "开始部署到Vercel..."
-          vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --yes \
-            -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
-            -e NODE_ENV="production" \
-            -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
-            -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
-            -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}" \
-            -e PYTHONPATH="/var/task:/var/task/api"
-
-          DEPLOY_EXIT_CODE=$?
-          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-            echo "Vercel 部署失败，退出码: $DEPLOY_EXIT_CODE"
-            echo "查看 Vercel 部署日志以获取更多信息"
-            exit $DEPLOY_EXIT_CODE
-          fi
-          
-          echo "✅ Vercel部署成功完成"
-          echo "status=$DEPLOY_EXIT_CODE" >> $GITHUB_OUTPUT
-
-      - name: Notify Success
-        if: success()
-        run: |
-          echo "✅ 部署成功 $(date)"
-          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
-            curl -X POST -H "Content-Type: application/json" \
-              -d "{\"content\": \"🚀 部署成功: $(date)\"}" \
-              "${{ secrets.DISCORD_WEBHOOK_URL }}"
-          fi
-
-      - name: Notify Failure
-        if: failure()
-        run: |
-          echo "❌ 部署失败 $(date)"
-          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
-            curl -X POST -H "Content-Type: application/json" \
-              -d "{\"content\": \"❌ 部署失败: $(date)\"}" \
-              "${{ secrets.DISCORD_WEBHOOK_URL }}"
-          fi
+          vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes

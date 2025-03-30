@@ -1,43 +1,16 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "^/api/(.*)$",
-      "dest": "api/index.py"
-    },
-    {
-      "src": "^/static/(.*)$",
-      "dest": "/frontend/build/static/$1"
-    },
-    {
-      "src": "^/favicon.ico$",
-      "dest": "/frontend/build/favicon.ico"
-    },
-    {
-      "src": "^/manifest.json$",
-      "dest": "/frontend/build/manifest.json"
-    },
-    {
-      "src": "^/(.*)",
-      "dest": "/frontend/build/index.html"
-    }
+  "buildCommand": "cd api && npm install && npm run build",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/$1" }
   ],
   "env": {
-    "PYTHONPATH": "/var/task:/var/task/api",
-    "PYTHONDONTWRITEBYTECODE": "1"
-  },
-  "regions": ["hkg1"]
-}
+    "MONGODB_URI": "from-workflow-secret",
+    "MONGODB_DB_NAME": "from-workflow-secret",
+    "API_ACCESS_PASSWORD": "from-workflow-secret",
+    "NODE_ENV": "production",
+    "REACT_APP_API_ACCESS_PASSWORD": "from-workflow-secret"
+  }
+} 
