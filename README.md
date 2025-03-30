@@ -55,7 +55,7 @@ api-deployment/
 
 - 前端: `https://api.433200.xyz`
 - 后端 API: `https://api.433200.xyz/api/api_data/?password=您的密码`
-- 后端文档: `https://api.433200.xyz/api/docs`
+- 后端其他: `https://api.433200.xyz/api/health`
 
 ## 环境变量说明
 
@@ -76,22 +76,3 @@ api-deployment/
 | ------------------------------- | ------------ | ----------------------------------- |
 | `REACT_APP_API_ACCESS_PASSWORD` | API 访问密码 | 与后端的 `API_ACCESS_PASSWORD` 相同 |
 
-## 故障排除
-
-如果后端 API 不可用或前端无法加载数据，请检查以下几点：
-
-1. **验证环境变量**：确保所有必要的环境变量都已正确设置在 Vercel 项目和 GitHub Secrets 中。
-
-2. **检查部署日志**：在 GitHub Actions 和 Vercel 仪表板中查看部署日志，寻找可能的错误。
-
-3. **API 入口文件**：确保 `backend/index.py` 文件存在并正确配置。该文件负责将请求路由到主应用。
-
-4. **测试 API 端点**：尝试直接访问以下端点进行测试：
-
-   - `https://api.433200.xyz/` - 应返回 API 状态信息
-   - `https://api.433200.xyz/api` - 应返回可用的 API 端点列表
-   - `https://api.433200.xyz/api/docs` - 应显示 API 文档
-
-5. **CORS 配置**：如果前端能加载但无法获取 API 数据，可能是 CORS 配置问题。检查后端的 CORS 中间件设置。
-
-6. **刷新部署**：有时简单地重新触发部署可以解决临时问题。在 GitHub Actions 中手动触发工作流。

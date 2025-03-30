@@ -4,12 +4,10 @@ on:
   push:
     branches:
       - main
-  repository_dispatch:
-    types: [frontend-updated, backend-updated]
   workflow_dispatch:
     inputs:
-      trigger:
-        description: "手动触发部署"
+      deploy_message:
+        description: "部署说明"
         required: false
         default: "手动触发部署"
 
@@ -18,114 +16,105 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Deployment Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: deployment
 
       - name: Checkout Frontend Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          repository: USYDShawnTan/api-frontend
+          repository: ${{ secrets.FRONTEND_REPO }}
           token: ${{ secrets.PAT_TOKEN }}
           path: frontend
+          fetch-depth: 1
 
       - name: Checkout Backend Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          repository: USYDShawnTan/api-backend
+          repository: ${{ secrets.BACKEND_REPO }}
           token: ${{ secrets.PAT_TOKEN }}
           path: backend
+          fetch-depth: 1
 
-      - name: Log Deployment Details
-        run: |
-          echo "Deployment triggered by: ${{ github.event_name }}"
-          echo "Repository: ${{ github.event.client_payload.repository || 'manual' }}"
-          echo "Commit SHA: ${{ github.event.client_payload.sha || github.sha }}"
-          date
-
-      - name: Setup Project Structure
-        run: |
-          mkdir -p merged-project
-          mkdir -p merged-project/frontend
-          mkdir -p merged-project/api
-
-          # 复制前端文件 - 使用源代码，Vercel将负责构建
-          cp -r frontend/* merged-project/frontend/
-
-          # 复制Vercel配置
-          cp deployment/vercel.json merged-project/
-
-          # 复制API入口文件
-          cp deployment/index.py merged-project/api/
-
-          # 添加空的__init__.py确保Python包识别
-          touch merged-project/api/__init__.py
-
-          # 复制后端的requirements.txt文件
-          cp backend/requirements.txt merged-project/
-
-          # 验证文件存在
-          if [ -f merged-project/frontend/package.json ]; then
-            echo "✅ 找到前端package.json文件"
-          else
-            echo "❌ 前端package.json文件不存在"
-            exit 1
-          fi
-
-          if [ -f merged-project/requirements.txt ]; then
-            echo "✅ 找到requirements.txt文件"
-            echo "requirements.txt内容:"
-            cat merged-project/requirements.txt
-          else
-            echo "❌ requirements.txt文件不存在"
-            exit 1
-          fi
-
-          # 调试输出
-          echo "最终部署文件结构:"
-          ls -la merged-project/
-          ls -la merged-project/frontend/
-          ls -la merged-project/api/
-          echo "API入口文件内容:"
-          cat merged-project/api/index.py
-          echo "前端package.json:"
-          cat merged-project/frontend/package.json | grep -E 'name|version|scripts'
-
-      # 安装并使用Vercel CLI直接部署
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: "backend/requirements.txt"
+
+      - name: Log Deployment Start
+        run: |
+          echo "Deployment started at $(date)"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Commit: ${{ github.sha }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Deploy message: ${{ github.event.inputs.deploy_message }}"
+          fi
+
+      - name: Prepare Project Structure
+        run: |
+          mkdir -p deploy-package
+          mkdir -p deploy-package/api
+          mkdir -p deploy-package/frontend
+
+          # Copy API files
+          cp deployment/index.py deploy-package/api/
+          touch deploy-package/api/__init__.py
+          cp -r backend/app deploy-package/
+          cp backend/requirements.txt deploy-package/
+
+          # Copy frontend files
+          cp -r frontend/* deploy-package/frontend/
+
+          # Copy Vercel configuration
+          cp deployment/vercel.json deploy-package/
+
+          # Validate structure
+          echo "Deployment package structure:"
+          find deploy-package -type f | sort
+
+          echo "API entry point:"
+          cat deploy-package/api/index.py | head -20
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
       - name: Deploy to Vercel
         run: |
-          cd merged-project
-          # 创建.vercel/project.json
+          cd deploy-package
+
+          # Create Vercel project configuration
           mkdir -p .vercel
           echo "{\"orgId\":\"${{ secrets.VERCEL_ORG_ID }}\",\"projectId\":\"${{ secrets.VERCEL_PROJECT_ID }}\"}" > .vercel/project.json
 
-          # 设置Vercel部署环境变量
-          export VERCEL_ORG_ID="${{ secrets.VERCEL_ORG_ID }}"
-          export VERCEL_PROJECT_ID="${{ secrets.VERCEL_PROJECT_ID }}"
-
-          # 执行部署，使用--cwd确保在正确目录
-          echo "Deploying to Vercel..."
-          vercel --token "${{ secrets.VERCEL_TOKEN }}" --prod --confirm \
+          # Deploy to Vercel
+          vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --confirm \
             -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
             -e NODE_ENV="production" \
             -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
-            -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}"
+            -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
+            -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}"
 
-      - name: Handle Deployment Failure
-        if: failure()
+      - name: Handle Deployment Result
+        if: always()
         run: |
-          echo "Deployment failed. See logs for details."
-          echo "查看错误日志:"
-          find . -name "*.log" -type f -exec cat {} \;
-
-      - name: Deployment Success Notification
-        if: success()
-        run: echo "Deployment successful. Updated from ${{ github.event.client_payload.repository || 'manual trigger' }}"
+          if [ $? -eq 0 ]; then
+            echo "✅ Deployment successful"
+            curl -X POST -H "Content-Type: application/json" \
+              -d "{\"content\": \"🚀 部署成功: $(date)\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_URL || '' }}
+          else
+            echo "❌ Deployment failed"
+            curl -X POST -H "Content-Type: application/json" \
+              -d "{\"content\": \"❌ 部署失败: $(date)\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_URL || '' }}
+            exit 1
+          fi
