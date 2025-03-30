@@ -92,10 +92,6 @@ async def protected_route():
     """需要密码验证的端点示例"""
     return {"message": "您已成功通过验证", "status": "ok"}
 
-# Vercel Serverless 函数处理程序 - 使用 ASGI 方式
-# 注意: 不要尝试直接使用 handler 作为函数名或者手动实现 BaseHTTPRequestHandler
-# 而是使用标准的 ASGI 接口
-
-# 这是标准的 ASGI 应用对象，Vercel 会自动使用它
-from mangum import Mangum
-handler = Mangum(app) 
+# Vercel Serverless 函数处理 - 直接导出 app
+# 不再使用 Mangum，使用标准的 FastAPI 应用
+handler = app 

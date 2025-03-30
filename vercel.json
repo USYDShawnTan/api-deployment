@@ -15,33 +15,29 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "src": "^/api/(.*)$",
+      "dest": "api/index.py"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/static/(.*)",
+      "src": "^/static/(.*)$",
       "dest": "/frontend/build/static/$1"
     },
     {
-      "src": "/manifest.json",
-      "dest": "/frontend/build/manifest.json"
-    },
-    {
-      "src": "/favicon.ico",
+      "src": "^/favicon.ico$",
       "dest": "/frontend/build/favicon.ico"
     },
     {
-      "src": "/(.*)",
+      "src": "^/manifest.json$",
+      "dest": "/frontend/build/manifest.json"
+    },
+    {
+      "src": "^/(.*)",
       "dest": "/frontend/build/index.html"
     }
   ],
   "env": {
-    "PYTHONPATH": ".",
-    "PYTHONDONTWRITEBYTECODE": "1",
-    "NODE_ENV": "production"
+    "PYTHONPATH": "/var/task:/var/task/api",
+    "PYTHONDONTWRITEBYTECODE": "1"
   },
   "regions": ["hkg1"]
 }

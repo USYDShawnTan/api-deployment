@@ -43,43 +43,78 @@ jobs:
 
       - name: Prepare Project Structure
         run: |
-          # 创建简单的部署结构
+          # 创建基本部署结构
           mkdir -p deploy-package/api
           mkdir -p deploy-package/frontend
-
-          # 复制核心 API 文件
+          
+          # 查看后端结构
+          echo "后端仓库结构:"
+          find backend -type f | grep -v "__pycache__" | sort
+          
+          # 复制FastAPI入口文件到API目录
           cp deployment/index.py deploy-package/api/
           touch deploy-package/api/__init__.py
-
-          # 确保 app 目录存在
+          
+          # 复制后端文件 - 更全面地复制所有必要文件
+          # 1. 复制整个app目录及其所有内容到根目录和API目录
           if [ -d "backend/app" ]; then
+            echo "复制后端app目录..."
             cp -r backend/app deploy-package/
+            
+            # 确保API可以直接访问app模块
+            cp -r backend/app/* deploy-package/api/ 2>/dev/null || true
+            
+            # 创建符号链接以确保导入路径正确
+            cd deploy-package
+            for dir in $(find app -type d); do
+              mkdir -p api/$dir
+            done
+            cd ..
           else
+            echo "警告: 后端app目录不存在!"
             mkdir -p deploy-package/app
             touch deploy-package/app/__init__.py
           fi
-
-          # 处理 requirements.txt
-          cp backend/requirements.txt deploy-package/
-
-          # 确保 requirements.txt 包含 mangum 依赖
-          if ! grep -q "mangum" deploy-package/requirements.txt; then
-            echo "mangum>=0.17.0" >> deploy-package/requirements.txt
+          
+          # 2. 复制其他关键后端文件
+          if [ -f "backend/run.py" ]; then
+            cp backend/run.py deploy-package/
           fi
-
-          # 打印 requirements.txt 内容以验证
-          echo "Requirements.txt 内容:"
-          cat deploy-package/requirements.txt
-
+          
+          if [ -f "backend/.env" ]; then
+            cp backend/.env deploy-package/
+          fi
+          
+          # 3. 优化requirements.txt - 只保留必要依赖
+          cat > deploy-package/requirements.txt << EOL
+fastapi==0.103.1
+uvicorn==0.23.2
+motor==3.2.0
+python-dotenv==1.0.0
+pydantic==2.3.0
+starlette==0.27.0
+EOL
+          
           # 复制前端文件
           cp -r frontend/* deploy-package/frontend/
-
-          # 复制 Vercel 配置
+          
+          # 复制Vercel配置
           cp deployment/vercel.json deploy-package/
-
-          # 显示部署结构
-          echo "部署包结构:"
-          find deploy-package -type f | grep -v "node_modules" | sort
+          
+          # 在API目录中创建一个简单的requirements.txt指向主要的requirements.txt
+          echo "-r ../requirements.txt" > deploy-package/api/requirements.txt
+          
+          # 显示部署包的完整结构
+          echo "=== 最终部署包结构 ==="
+          find deploy-package -type f -o -type d | grep -v "node_modules" | sort
+          
+          # 显示API目录内容
+          echo "=== API目录内容 ==="
+          find deploy-package/api -type f | sort
+          
+          # 显示requirements.txt内容
+          echo "=== Requirements.txt内容 ==="
+          cat deploy-package/requirements.txt
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
@@ -103,13 +138,15 @@ jobs:
             exit 1
           fi
 
-          # 部署到 Vercel - 使用 --yes 代替 --confirm
+          # 部署到 Vercel
+          echo "开始部署到Vercel..."
           vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --yes \
             -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
             -e NODE_ENV="production" \
             -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
             -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
-            -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}"
+            -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}" \
+            -e PYTHONPATH="/var/task:/var/task/api"
 
           DEPLOY_EXIT_CODE=$?
           if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
@@ -117,7 +154,8 @@ jobs:
             echo "查看 Vercel 部署日志以获取更多信息"
             exit $DEPLOY_EXIT_CODE
           fi
-
+          
+          echo "✅ Vercel部署成功完成"
           echo "status=$DEPLOY_EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Notify Success
