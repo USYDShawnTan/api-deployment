@@ -47,16 +47,22 @@ jobs:
         run: |
           mkdir -p merged-project
           mkdir -p merged-project/frontend
+          mkdir -p merged-project/api
 
           # 复制前端文件 - 使用源代码，Vercel将负责构建
           cp -r frontend/* merged-project/frontend/
 
-          # 复制Vercel配置和入口文件
+          # 复制Vercel配置
           cp deployment/vercel.json merged-project/
-          cp deployment/index.py merged-project/
+
+          # 复制API入口文件
+          cp deployment/index.py merged-project/api/
+
+          # 添加空的__init__.py确保Python包识别
+          touch merged-project/api/__init__.py
 
           # 复制后端的requirements.txt文件
-          cp backend/requirements.txt merged-project/requirements.txt
+          cp backend/requirements.txt merged-project/
 
           # 验证文件存在
           if [ -f merged-project/frontend/package.json ]; then
@@ -79,8 +85,9 @@ jobs:
           echo "最终部署文件结构:"
           ls -la merged-project/
           ls -la merged-project/frontend/
-          echo "入口文件内容:"
-          cat merged-project/index.py
+          ls -la merged-project/api/
+          echo "API入口文件内容:"
+          cat merged-project/api/index.py
           echo "前端package.json:"
           cat merged-project/frontend/package.json | grep -E 'name|version|scripts'
 
