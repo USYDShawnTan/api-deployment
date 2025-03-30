@@ -1,0 +1,79 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+  repository_dispatch:
+    types: [frontend-updated, backend-updated]
+  workflow_dispatch:
+    inputs:
+      trigger:
+        description: "手动触发部署"
+        required: false
+        default: "手动触发部署"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Deployment Repository
+        uses: actions/checkout@v3
+        with:
+          path: deployment
+
+      - name: Checkout Backend Repository
+        uses: actions/checkout@v3
+        with:
+          repository: USYDShawnTan/api-backend
+          token: ${{ secrets.PAT_TOKEN }}
+          path: backend
+
+      - name: Checkout Frontend Repository
+        uses: actions/checkout@v3
+        with:
+          repository: USYDShawnTan/api-frontend
+          token: ${{ secrets.PAT_TOKEN }}
+          path: frontend
+
+      - name: Log Deployment Details
+        run: |
+          echo "Deployment triggered by: ${{ github.event_name }}"
+          echo "Repository: ${{ github.event.client_payload.repository || 'manual' }}"
+          echo "Commit SHA: ${{ github.event.client_payload.sha || github.sha }}"
+          date
+
+      - name: Setup Project Structure
+        run: |
+          mkdir -p merged-project/backend
+          mkdir -p merged-project/frontend
+          cp -r backend/* merged-project/backend/
+          cp -r frontend/* merged-project/frontend/
+          cp deployment/vercel.json merged-project/
+          ls -la merged-project
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel with Environment Variables
+        run: |
+          cd merged-project
+          vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --prod --yes \
+          -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
+          -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
+          -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
+          -e NODE_ENV="production"
+
+      - name: Handle Deployment Failure
+        if: failure()
+        run: |
+          echo "Deployment failed. See logs for details."
+
+      - name: Deployment Success Notification
+        if: success()
+        run: echo "Deployment successful. Updated from ${{ github.event.client_payload.repository || 'manual trigger' }}"
