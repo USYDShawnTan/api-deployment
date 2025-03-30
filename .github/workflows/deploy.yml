@@ -75,9 +75,9 @@ jobs:
           cp backend-repo/requirements.txt backend-repo/requirements.original.txt
 
           # 创建新的requirements.txt确保兼容性
-          echo 'fastapi==0.95.2' > backend-repo/requirements.txt
+          echo 'fastapi==0.100.0' > backend-repo/requirements.txt
           echo 'uvicorn==0.22.0' >> backend-repo/requirements.txt
-          echo 'pydantic==1.10.8' >> backend-repo/requirements.txt
+          echo 'pydantic==1.10.13' >> backend-repo/requirements.txt
           echo 'python-dotenv==1.0.0' >> backend-repo/requirements.txt
           echo 'typing-extensions==4.6.3' >> backend-repo/requirements.txt
           echo 'starlette==0.27.0' >> backend-repo/requirements.txt
