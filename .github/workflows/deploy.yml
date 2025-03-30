@@ -48,28 +48,30 @@ jobs:
           mkdir -p backend-repo/static
           # 复制前端构建的静态文件到后端的static目录
           cp -r frontend-repo/build/* backend-repo/static/
-          # 确保后端服务于静态文件
-          cat > backend-repo/app/static_files.py << EOF
-from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI
 
-def setup_static_files(app: FastAPI):
-    app.mount("/", StaticFiles(directory="static", html=True), name="static")
-EOF
+          # 创建静态文件服务模块
+          mkdir -p backend-repo/app
+          echo 'from fastapi.staticfiles import StaticFiles' > backend-repo/app/static_files.py
+          echo 'from fastapi import FastAPI' >> backend-repo/app/static_files.py
+          echo '' >> backend-repo/app/static_files.py
+          echo 'def setup_static_files(app: FastAPI):' >> backend-repo/app/static_files.py
+          echo '    app.mount("/", StaticFiles(directory="static", html=True), name="static")' >> backend-repo/app/static_files.py
+
           # 修改后端的index.py以包含静态文件服务
           grep -q "from app.static_files import setup_static_files" backend-repo/app/index.py || echo "from app.static_files import setup_static_files" >> backend-repo/app/index.py
           grep -q "setup_static_files(app)" backend-repo/app/index.py || echo "setup_static_files(app)" >> backend-repo/app/index.py
-          # 修改requirements.txt确保兼容性
+
+          # 备份原始requirements.txt
           cp backend-repo/requirements.txt backend-repo/requirements.original.txt
-          cat > backend-repo/requirements.txt << EOF
-fastapi==0.95.2
-uvicorn==0.22.0
-pydantic==1.10.8
-python-dotenv==1.0.0
-typing-extensions==4.6.3
-starlette==0.27.0
-EOF
-      
+
+          # 创建新的requirements.txt确保兼容性
+          echo 'fastapi==0.95.2' > backend-repo/requirements.txt
+          echo 'uvicorn==0.22.0' >> backend-repo/requirements.txt
+          echo 'pydantic==1.10.8' >> backend-repo/requirements.txt
+          echo 'python-dotenv==1.0.0' >> backend-repo/requirements.txt
+          echo 'typing-extensions==4.6.3' >> backend-repo/requirements.txt
+          echo 'starlette==0.27.0' >> backend-repo/requirements.txt
+
       # 安装Vercel CLI
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
