@@ -40,45 +40,51 @@ jobs:
         run: |
           mkdir -p merged-project
           mkdir -p merged-project/frontend
-          # 复制前端文件
+
+          # 复制前端文件 - 使用源代码，Vercel将负责构建
           cp -r frontend/* merged-project/frontend/
+
           # 复制Vercel配置和入口文件
           cp deployment/vercel.json merged-project/
           cp deployment/index.py merged-project/
 
-          # 添加requirements.txt文件
-          cat > merged-project/requirements.txt << EOF
-          fastapi>=0.95.0
-          uvicorn>=0.21.1
-          python-dotenv>=1.0.0
-          pydantic>=2.0.0
-          starlette>=0.27.0
-          EOF
+          # 验证前端package.json文件
+          if [ -f merged-project/frontend/package.json ]; then
+            echo "✅ 找到前端package.json文件"
+          else
+            echo "❌ 前端package.json文件不存在"
+            exit 1
+          fi
 
-          # 阻止生成__pycache__目录
-          export PYTHONDONTWRITEBYTECODE=1
+          # 添加requirements.txt文件 - 简化依赖
+          cat > merged-project/requirements.txt << EOF
+          fastapi==0.95.0
+          uvicorn==0.21.1
+          EOF
 
           # 调试输出
           echo "最终部署文件结构:"
           ls -la merged-project/
+          ls -la merged-project/frontend/
           echo "入口文件内容:"
-          cat merged-project/index.py | head -20
+          cat merged-project/index.py
+          echo "前端package.json:"
+          cat merged-project/frontend/package.json | grep -E 'name|version|scripts'
 
-      - name: Setup Node.js
+      - name: Setup Node.js for Vercel
         uses: actions/setup-node@v3
         with:
           node-version: "18"
 
       - name: Install Vercel CLI
-        run: npm install -g vercel
+        run: npm install -g vercel@28.20.0
 
-      - name: Deploy to Vercel with Environment Variables
+      - name: Deploy to Vercel
         run: |
           cd merged-project
           vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --prod --yes \
           -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
-          -e NODE_ENV="production" \
-          -e PYTHONDONTWRITEBYTECODE="1"
+          -e NODE_ENV="production"
 
       - name: Handle Deployment Failure
         if: failure()
