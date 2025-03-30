@@ -2,21 +2,12 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/app/index.py",
+      "src": "index.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
         "runtime": "python3.9",
-        "includeFiles": [
-          "backend/app/**",
-          "backend/requirements.txt",
-          "backend/.env"
-        ],
-        "excludeFiles": [
-          "backend/**/__pycache__/**",
-          "**/__pycache__/**",
-          "**/*.pyc"
-        ]
+        "excludeFiles": ["**/__pycache__/**", "**/*.pyc"]
       }
     },
     {
@@ -30,7 +21,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/backend/app/index.py"
+      "dest": "/index.py"
     },
     {
       "handle": "filesystem"
@@ -41,7 +32,7 @@
     }
   ],
   "env": {
-    "PYTHONPATH": "backend",
+    "PYTHONPATH": ".",
     "PYTHONDONTWRITEBYTECODE": "1"
   },
   "regions": ["hkg1"]
