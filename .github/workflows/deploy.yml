@@ -41,22 +41,12 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Check if requirements.txt exists
-        id: check-requirements
-        run: |
-          if [ -f "backend/requirements.txt" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          # 只有当 requirements.txt 文件存在时才使用缓存
-          cache: ${{ steps.check-requirements.outputs.exists == 'true' && 'pip' || 'none' }}
-          cache-dependency-path: ${{ steps.check-requirements.outputs.exists == 'true' && 'backend/requirements.txt' || '' }}
+          # 完全禁用缓存
+          cache: "none"
 
       - name: Log Deployment Start
         run: |
@@ -120,7 +110,7 @@ jobs:
           mkdir -p .vercel
           echo "{\"orgId\":\"${{ secrets.VERCEL_ORG_ID }}\",\"projectId\":\"${{ secrets.VERCEL_PROJECT_ID }}\"}" > .vercel/project.json
 
-          # Deploy to Vercel
+          # Deploy to Vercel and store exit code
           vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --confirm \
             -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
             -e NODE_ENV="production" \
@@ -128,25 +118,26 @@ jobs:
             -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
             -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}"
 
-          # 保存部署状态到输出变量
-          echo "status=$?" >> $GITHUB_OUTPUT
+          DEPLOY_EXIT_CODE=$?
+          echo "status=$DEPLOY_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $DEPLOY_EXIT_CODE
 
-      - name: Handle Deployment Result
-        if: always()
+      - name: Notify Success
+        if: success()
         run: |
-          if [ ${{ steps.deploy.outputs.status }} -eq 0 ]; then
-            echo "✅ Deployment successful"
-            if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
-              curl -X POST -H "Content-Type: application/json" \
-                -d "{\"content\": \"🚀 部署成功: $(date)\"}" \
-                "${{ secrets.DISCORD_WEBHOOK_URL }}"
-            fi
-          else
-            echo "❌ Deployment failed"
-            if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
-              curl -X POST -H "Content-Type: application/json" \
-                -d "{\"content\": \"❌ 部署失败: $(date)\"}" \
-                "${{ secrets.DISCORD_WEBHOOK_URL }}"
-            fi
-            exit 1
+          echo "✅ Deployment successful"
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -X POST -H "Content-Type: application/json" \
+              -d "{\"content\": \"🚀 部署成功: $(date)\"}" \
+              "${{ secrets.DISCORD_WEBHOOK_URL }}"
+          fi
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed"
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -X POST -H "Content-Type: application/json" \
+              -d "{\"content\": \"❌ 部署失败: $(date)\"}" \
+              "${{ secrets.DISCORD_WEBHOOK_URL }}"
           fi
