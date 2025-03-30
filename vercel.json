@@ -1,27 +1,26 @@
 {
   "version": 2,
-  "regions": ["sin1"],
   "builds": [
     {
-      "src": "index.py",
-      "use": "@vercel/python"
+      "src": "api/app/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb",
+        "includeFiles": ["api/app/**"]
+      }
     },
     {
-      "src": "public/**",
-      "use": "@vercel/static"
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "public"
+      }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/"
-    },
-    {
-      "src": "/health",
-      "dest": "/"
-    },
-    {
-      "handle": "filesystem"
+      "dest": "api/app/index.py"
     },
     {
       "src": "/(.*)",

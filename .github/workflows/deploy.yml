@@ -1,99 +1,63 @@
 name: Deploy to Vercel
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch: # 允许手动触发
   repository_dispatch:
-    types: [frontend-updated, backend-updated]
-  workflow_dispatch:
-    inputs:
-      deploy_type:
-        description: "Type of deployment"
-        required: true
-        default: "full"
-        type: choice
-        options:
-          - full
-          - frontend-only
-          - backend-only
+    types: [frontend-update, backend-update] # 响应前端和后端仓库的更新
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # 为前端设置Node.js环境
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "16"
+          node-version: "18"
 
+      # 为后端设置Python环境
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 7
-          run_install: false
-
-      - name: Clone frontend repository
+      # 克隆前端仓库
+      - name: Clone Frontend Repository
         run: |
-          git clone https://${{ secrets.PAT_TOKEN }}@github.com/${{ secrets.FRONTEND_REPO }} frontend
-        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
+          git clone https://${{ secrets.PAT_TOKEN }}@github.com/USYDShawnTan/api-frontend.git frontend-repo
 
-      - name: Clone backend repository
+      # 构建前端
+      - name: Build Frontend
         run: |
-          git clone https://${{ secrets.PAT_TOKEN }}@github.com/${{ secrets.BACKEND_REPO }} backend
-        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
+          cd frontend-repo
+          npm install
+          npm run build
+          mkdir -p ../public
+          cp -r build/* ../public/
 
-      - name: Install frontend dependencies
-        working-directory: frontend
+      # 克隆后端仓库
+      - name: Clone Backend Repository
         run: |
-          pnpm install
-        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
+          git clone https://${{ secrets.PAT_TOKEN }}@github.com/USYDShawnTan/api-backend.git backend-repo
 
-      - name: Build frontend
-        working-directory: frontend
+      # 设置后端文件结构
+      - name: Setup Backend Files
         run: |
-          pnpm run build
-        env:
-          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
-        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
-
-      - name: Move frontend build to deployment directory
-        run: |
-          mkdir -p public
-          cp -r frontend/build/* public/
-        if: github.event.action == 'frontend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'frontend-only'
-
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # 安装指定版本的依赖
-          pip install -r requirements.txt
-        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
-
-      - name: Copy backend files to api directory
-        run: |
-          # 确保主API文件存在于根目录
-          cp api.py api.py
-          cp index.py index.py
-          # 保留后端文件
+          # 创建api目录结构
           mkdir -p api
-          cp -r backend/* api/
-        if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
+          # 直接复制后端仓库中的所有内容到api目录
+          cp -r backend-repo/* api/
 
+      # 安装Vercel CLI
       - name: Install Vercel CLI
-        run: npm install -g vercel@latest
+        run: npm install --global vercel@latest
 
+      # 部署到Vercel
       - name: Deploy to Vercel
-        run: |
-          vercel --token ${{ secrets.VERCEL_TOKEN }} --env MONGODB_URI="${{ secrets.MONGODB_URI }}" --env MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" --env API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" --yes --prod
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

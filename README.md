@@ -8,7 +8,7 @@
 
 1. 前端仓库 (`USYDShawnTan/api-frontend`) 更新时触发部署
 2. 后端仓库 (`USYDShawnTan/api-backend`) 更新时触发部署
-3. 也可以通过此仓库的 Actions 页面手动触发部署，自动也行
+3. 也可以通过此仓库的 Actions 页面手动触发部署
 
 ## 工作流程
 
@@ -23,6 +23,12 @@ api-deployment/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml         # 主部署工作流
+├── api/                       # 后端API目录
+│   ├── app/                   # 后端应用程序代码
+│   │   └── index.py           # 后端API入口点
+│   └── requirements.txt       # Python依赖项
+├── public/                    # 前端静态文件(由Actions构建)
+├── package.json               # 前端包配置
 ├── vercel.json                # Vercel 配置文件
 ├── .gitignore                 # Git 忽略文件
 └── README.md                  # 本说明文件
@@ -33,27 +39,13 @@ api-deployment/
 成功部署后，您应该能够通过以下 URL 访问：
 
 - 前端: `https://api.433200.xyz`
-- 后端 API: `https://api.433200.xyz/api/api_data/?password=您的密码`
-- 后端其他: `https://api.433200.xyz/api/health`
+- 后端 API: `https://api.433200.xyz/api/health`
 
 ## 环境变量说明
 
-API_ACCESS_PASSWORD
+需要在 GitHub Secrets 和 Vercel 项目中配置以下环境变量：
 
-BACKEND_REPO
-
-FRONTEND_REPO
-
-MONGODB_DB_NAME
-
-MONGODB_URI
-
-PAT_TOKEN
-
-REACT_APP_API_URL
-
-VERCEL_ORG_ID
-
-VERCEL_PROJECT_ID
-
-VERCEL_TOKEN
+- `PAT_TOKEN`: GitHub 个人访问令牌，用于克隆仓库
+- `VERCEL_ORG_ID`: Vercel 组织 ID
+- `VERCEL_PROJECT_ID`: Vercel 项目 ID
+- `VERCEL_TOKEN`: Vercel API 令牌
