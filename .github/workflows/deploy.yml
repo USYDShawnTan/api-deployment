@@ -93,15 +93,32 @@ jobs:
           mkdir -p .vercel
           echo "{\"orgId\":\"${{ secrets.VERCEL_ORG_ID }}\",\"projectId\":\"${{ secrets.VERCEL_PROJECT_ID }}\"}" > .vercel/project.json
 
-          # 部署到 Vercel
-          vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --confirm \
+          # 验证 vercel.json 配置文件格式
+          cat vercel.json
+          echo "正在验证 vercel.json..."
+
+          # 检查 vercel.json 配置是否有效
+          if ! jq empty vercel.json 2>/dev/null; then
+            echo "错误: vercel.json 不是有效的 JSON 格式"
+            exit 1
+          fi
+
+          # 部署到 Vercel - 使用 --yes 代替 --confirm
+          vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --yes \
             -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
             -e NODE_ENV="production" \
             -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
             -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
             -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}"
 
-          echo "status=$?" >> $GITHUB_OUTPUT
+          DEPLOY_EXIT_CODE=$?
+          if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
+            echo "Vercel 部署失败，退出码: $DEPLOY_EXIT_CODE"
+            echo "查看 Vercel 部署日志以获取更多信息"
+            exit $DEPLOY_EXIT_CODE
+          fi
+
+          echo "status=$DEPLOY_EXIT_CODE" >> $GITHUB_OUTPUT
 
       - name: Notify Success
         if: success()
