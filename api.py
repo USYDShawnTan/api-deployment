@@ -8,8 +8,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
 logger.info("启动API服务")
 
-# 创建应用
-app = FastAPI(title="API")
+# 创建应用 - 简化配置
+app = FastAPI()
 
 # 添加CORS中间件
 app.add_middleware(
@@ -20,25 +20,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 基础路由
+# 基础路由 - 尽量简单
 @app.get("/")
-async def root():
+def root():
     return {"message": "API服务正常运行"}
 
 @app.get("/api")
-async def api_root():
+def api_root():
     return {"message": "API服务正常运行"}
 
 @app.get("/health")
-async def health():
+def health():
     return {"status": "healthy"}
 
 @app.get("/api/health")
-async def api_health():
+def api_health():
     return {"status": "healthy"}
 
 @app.get("/api/data")
-async def get_data():
+def get_data():
     try:
         return {
             "data": [
@@ -52,7 +52,7 @@ async def get_data():
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/debug")
-async def debug():
+def debug():
     return {
         "env": dict(os.environ),
         "cwd": os.getcwd(),

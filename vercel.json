@@ -3,7 +3,7 @@
   "regions": ["sin1"],
   "builds": [
     {
-      "src": "api.py",
+      "src": "index.py",
       "use": "@vercel/python"
     },
     {
@@ -14,11 +14,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api.py"
+      "dest": "/"
     },
     {
       "src": "/health",
-      "dest": "/api.py"
+      "dest": "/"
     },
     {
       "handle": "filesystem"
