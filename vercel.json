@@ -17,12 +17,8 @@
   ],
   "routes": [
     {
-      "src": "/api",
-      "dest": "/api/run.py"
-    },
-    {
       "src": "/api/(.*)",
-      "dest": "/api/run.py/$1"
+      "dest": "/api/run.py"
     },
     {
       "handle": "filesystem"
@@ -31,9 +27,5 @@
       "src": "/(.*)",
       "dest": "/public/$1"
     }
-  ],
-  "env": {
-    "PYTHON_VERSION": "3.10",
-    "BASE_PATH": "/api"
-  }
+  ]
 }

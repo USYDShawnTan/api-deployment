@@ -1,6 +1,9 @@
 name: Deploy to Vercel
 
 on:
+  push:
+    branches:
+      - main
   repository_dispatch:
     types: [frontend-updated, backend-updated]
   workflow_dispatch:
@@ -73,12 +76,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install mcstatus
+          # 创建requirements.txt以供Vercel使用
+          cp backend/requirements.txt api/requirements.txt
         if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
       - name: Copy backend files to api directory
         run: |
           mkdir -p api
           cp -r backend/* api/
+          # 使用我们预先编写的run.py文件替换后端的入口文件
+          cp run.py api/run.py
         if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
       - name: Install Vercel CLI
