@@ -41,62 +41,32 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          # 完全禁用缓存
-          cache: "none"
-
-      - name: Log Deployment Start
-        run: |
-          echo "Deployment started at $(date)"
-          echo "Trigger: ${{ github.event_name }}"
-          echo "Commit: ${{ github.sha }}"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Deploy message: ${{ github.event.inputs.deploy_message }}"
-          fi
-
       - name: Prepare Project Structure
         run: |
-          mkdir -p deploy-package
+          # 创建简单的部署结构
           mkdir -p deploy-package/api
           mkdir -p deploy-package/frontend
 
-          # Copy API files
+          # 复制核心 API 文件
           cp deployment/index.py deploy-package/api/
           touch deploy-package/api/__init__.py
 
-          # 确保目录存在后再复制
+          # 直接复制后端 requirements.txt 和 app 目录
+          cp backend/requirements.txt deploy-package/
+
           if [ -d "backend/app" ]; then
             cp -r backend/app deploy-package/
-          else
-            mkdir -p deploy-package/app
           fi
 
-          # 确保 requirements.txt 存在
-          if [ -f "backend/requirements.txt" ]; then
-            cp backend/requirements.txt deploy-package/
-          else
-            echo "fastapi>=0.95.0" > deploy-package/requirements.txt
-            echo "uvicorn>=0.21.1" >> deploy-package/requirements.txt
-            echo "motor>=3.1.1" >> deploy-package/requirements.txt
-            echo "python-dotenv>=1.0.0" >> deploy-package/requirements.txt
-            echo "pydantic>=2.0.0" >> deploy-package/requirements.txt
-          fi
-
-          # Copy frontend files
+          # 复制前端文件
           cp -r frontend/* deploy-package/frontend/
 
-          # Copy Vercel configuration
+          # 复制 Vercel 配置
           cp deployment/vercel.json deploy-package/
 
-          # Validate structure
-          echo "Deployment package structure:"
-          find deploy-package -type f | sort
-
-          echo "API entry point:"
-          cat deploy-package/api/index.py | head -20
+          # 显示部署结构
+          echo "部署包结构:"
+          find deploy-package -type f | grep -v "node_modules" | sort
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
@@ -106,11 +76,11 @@ jobs:
         run: |
           cd deploy-package
 
-          # Create Vercel project configuration
+          # 创建 Vercel 项目配置
           mkdir -p .vercel
           echo "{\"orgId\":\"${{ secrets.VERCEL_ORG_ID }}\",\"projectId\":\"${{ secrets.VERCEL_PROJECT_ID }}\"}" > .vercel/project.json
 
-          # Deploy to Vercel and store exit code
+          # 部署到 Vercel
           vercel deploy --prod --token "${{ secrets.VERCEL_TOKEN }}" --confirm \
             -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
             -e NODE_ENV="production" \
@@ -118,14 +88,12 @@ jobs:
             -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
             -e REACT_APP_API_URL="${{ secrets.REACT_APP_API_URL }}"
 
-          DEPLOY_EXIT_CODE=$?
-          echo "status=$DEPLOY_EXIT_CODE" >> $GITHUB_OUTPUT
-          exit $DEPLOY_EXIT_CODE
+          echo "status=$?" >> $GITHUB_OUTPUT
 
       - name: Notify Success
         if: success()
         run: |
-          echo "✅ Deployment successful"
+          echo "✅ 部署成功 $(date)"
           if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
             curl -X POST -H "Content-Type: application/json" \
               -d "{\"content\": \"🚀 部署成功: $(date)\"}" \
@@ -135,7 +103,7 @@ jobs:
       - name: Notify Failure
         if: failure()
         run: |
-          echo "❌ Deployment failed"
+          echo "❌ 部署失败 $(date)"
           if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
             curl -X POST -H "Content-Type: application/json" \
               -d "{\"content\": \"❌ 部署失败: $(date)\"}" \
