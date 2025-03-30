@@ -3,21 +3,11 @@
   "regions": ["sin1"],
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "run.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
-        "runtime": "python3.10",
-        "includeFiles": ["api/**", "api/requirements.txt"]
-      }
-    },
-    {
-      "src": "index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb",
-        "runtime": "python3.10",
-        "includeFiles": ["requirements.txt"]
+        "runtime": "python3.10"
       }
     },
     {
@@ -27,16 +17,8 @@
   ],
   "routes": [
     {
-      "src": "/api/debug",
-      "dest": "/api/index.py"
-    },
-    {
       "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/debug-root",
-      "dest": "/index.py"
+      "dest": "/run.py"
     },
     {
       "handle": "filesystem"
@@ -47,7 +29,6 @@
     }
   ],
   "env": {
-    "PYTHONPATH": ".",
-    "DEBUG": "true"
+    "PYTHONPATH": "."
   }
 }

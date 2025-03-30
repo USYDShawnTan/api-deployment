@@ -76,25 +76,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install mcstatus
-          # 创建requirements.txt以供Vercel使用
-          cp backend/requirements.txt api/requirements.txt
-          echo "mcstatus" >> api/requirements.txt
         if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
       - name: Copy backend files to api directory
         run: |
           mkdir -p api
           cp -r backend/* api/
-          # 将入口文件放在api目录和根目录
-          cp index.py api/index.py
+          # 更新运行时使用的文件，这些会在根目录运行而不是api目录
           cp index.py index.py
-          # 确保根目录和api目录都有requirements.txt
-          cp requirements.txt api/requirements.txt
-          # 更新requirements确保包含所有依赖
-          echo "fastapi>=0.95.0" >> api/requirements.txt
-          echo "uvicorn>=0.21.1" >> api/requirements.txt
-          echo "python-multipart>=0.0.6" >> api/requirements.txt
-          echo "mcstatus" >> api/requirements.txt
+          cp run.py run.py
         if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
       - name: Install Vercel CLI
