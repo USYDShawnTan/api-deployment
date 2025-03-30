@@ -1,6 +1,9 @@
 name: Deploy to Vercel
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch: # 允许手动触发
   repository_dispatch:
     types: [frontend-update, backend-update] # 响应前端和后端仓库的更新
@@ -44,22 +47,29 @@ jobs:
       # 设置整合后的部署结构
       - name: Setup Deployment Structure
         run: |
-          # 创建static目录（如果后端仓库中不存在）
-          mkdir -p backend-repo/static
-          # 复制前端构建的静态文件到后端的static目录
-          cp -r frontend-repo/build/* backend-repo/static/
+          # 创建静态文件目录
+          mkdir -p backend-repo/app/static
+          mkdir -p backend-repo/app/static/static
 
-          # 创建静态文件服务模块
-          mkdir -p backend-repo/app
-          echo 'from fastapi.staticfiles import StaticFiles' > backend-repo/app/static_files.py
-          echo 'from fastapi import FastAPI' >> backend-repo/app/static_files.py
-          echo '' >> backend-repo/app/static_files.py
-          echo 'def setup_static_files(app: FastAPI):' >> backend-repo/app/static_files.py
-          echo '    app.mount("/", StaticFiles(directory="static", html=True), name="static")' >> backend-repo/app/static_files.py
+          # 复制前端构建的静态文件
+          cp -r frontend-repo/build/* backend-repo/app/static/
 
-          # 修改后端的index.py以包含静态文件服务
-          grep -q "from app.static_files import setup_static_files" backend-repo/app/index.py || echo "from app.static_files import setup_static_files" >> backend-repo/app/index.py
-          grep -q "setup_static_files(app)" backend-repo/app/index.py || echo "setup_static_files(app)" >> backend-repo/app/index.py
+          # 修改index.py以支持静态文件和SPA路由
+          grep -q "from fastapi.staticfiles import StaticFiles" backend-repo/app/index.py || echo "from fastapi.staticfiles import StaticFiles" >> backend-repo/app/index.py
+          grep -q "from fastapi.responses import FileResponse" backend-repo/app/index.py || echo "from fastapi.responses import FileResponse" >> backend-repo/app/index.py
+          grep -q "import os" backend-repo/app/index.py || echo "import os" >> backend-repo/app/index.py
+
+          # 添加静态文件挂载
+          grep -q "app.mount(\"/static\", StaticFiles(directory=\"static/static\"), name=\"static\")" backend-repo/app/index.py || echo "app.mount(\"/static\", StaticFiles(directory=\"static/static\"), name=\"static\")" >> backend-repo/app/index.py
+
+          # 添加根路径处理
+          grep -q "@app.get(\"/\")" backend-repo/app/index.py || echo -e "\n@app.get(\"/\")\nasync def serve_frontend():\n    index_path = os.path.join(\"static\", \"index.html\")\n    return FileResponse(index_path, media_type=\"text/html\")" >> backend-repo/app/index.py
+
+          # 添加通配符路由支持SPA
+          grep -q "@app.get(\"/{full_path:path}\")" backend-repo/app/index.py || echo -e "\n@app.get(\"/{full_path:path}\")\nasync def catch_all(full_path: str):\n    if full_path.startswith(\"api/\"):\n        raise HTTPException(status_code=404, detail=\"API route not found\")\n    index_path = os.path.join(\"static\", \"index.html\")\n    return FileResponse(index_path, media_type=\"text/html\")" >> backend-repo/app/index.py
+
+          # 添加HTTPException导入
+          grep -q "from fastapi import FastAPI, HTTPException" backend-repo/app/index.py || sed -i 's/from fastapi import FastAPI/from fastapi import FastAPI, HTTPException/g' backend-repo/app/index.py
 
           # 备份原始requirements.txt
           cp backend-repo/requirements.txt backend-repo/requirements.original.txt
