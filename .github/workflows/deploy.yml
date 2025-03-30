@@ -78,11 +78,11 @@ jobs:
         run: |
           mkdir -p api
           cp -r backend/* api/
-          cp -r backend/.env api/
         if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
       - name: Configure backend environment variables
         run: |
+          touch api/.env
           echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> api/.env
           echo "MONGODB_DB_NAME=${{ secrets.MONGODB_DB_NAME }}" >> api/.env
           echo "API_ACCESS_PASSWORD=${{ secrets.API_ACCESS_PASSWORD }}" >> api/.env
