@@ -50,7 +50,7 @@ jobs:
           ls -la backend/app/ || echo "No app directory"
           ls -la backend/app/routers/ || echo "No routers directory"
           echo "Backend entry files:"
-          find backend -name "*.py" -type f | grep -E "index.py|main.py"
+          find backend -name "*.py" -type f | grep -E "index.py|main.py|run.py"
 
       - name: Setup Project Structure
         run: |
@@ -59,12 +59,30 @@ jobs:
           cp -r backend/* merged-project/backend/
           cp -r frontend/* merged-project/frontend/
           cp deployment/vercel.json merged-project/
-          # 复制自定义入口文件
-          cp deployment/index.py merged-project/backend/
+          
+          # 确保app目录存在index.py
+          if [ ! -f merged-project/backend/app/index.py ]; then
+            echo "创建app/index.py文件"
+            mkdir -p merged-project/backend/app
+            cat > merged-project/backend/app/index.py << 'EOF'
+from app.main import app
+
+# 为Vercel Serverless Functions 导出处理函数
+# 这是Vercel Python运行时所需的
+handler = app
+EOF
+          fi
+          
+          # 阻止生成__pycache__目录
+          export PYTHONDONTWRITEBYTECODE=1
+          
           # 确保有正确的入口文件
-          [ -f merged-project/backend/app/main.py ] || echo "WARNING: main.py missing!"
-          [ -f merged-project/backend/index.py ] || echo "WARNING: index.py missing!"
+          [ -f merged-project/backend/app/main.py ] || echo "WARNING: app/main.py missing!"
+          [ -f merged-project/backend/app/index.py ] || echo "WARNING: app/index.py missing!"
+
           # 调试输出
+          echo "最终部署文件结构:"
+          ls -la merged-project/
           ls -la merged-project/backend/
           ls -la merged-project/backend/app/
 
@@ -83,12 +101,15 @@ jobs:
           -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
           -e MONGODB_DB_NAME="${{ secrets.MONGODB_DB_NAME }}" \
           -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
-          -e NODE_ENV="production"
+          -e NODE_ENV="production" \
+          -e PYTHONDONTWRITEBYTECODE="1"
 
       - name: Handle Deployment Failure
         if: failure()
         run: |
           echo "Deployment failed. See logs for details."
+          echo "查看错误日志:"
+          find . -name "*.log" -type f -exec cat {} \;
 
       - name: Deployment Success Notification
         if: success()

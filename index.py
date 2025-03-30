@@ -1,42 +1,21 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+"""
+Vercel部署入口文件
+此文件作为Vercel Python运行时的入口点
+用于将请求转发到FastAPI应用
+"""
+import sys
 import os
 
-app = FastAPI()
+# 阻止Python生成__pycache__目录
+sys.dont_write_bytecode = True
 
-# 添加CORS中间件
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 导入应用的处理程序
+from app.main import app as fastapi_app
 
-@app.get("/")
-async def root():
-    """根路径响应，用于API健康检查"""
-    return {
-        "message": "API服务正常运行",
-        "service": "api.433200.xyz",
-        "status": "operational",
-        "version": "1.0.0"
-    }
+# 为Vercel Serverless Functions导出处理函数
+handler = fastapi_app
 
-@app.get("/api")
-async def api_root():
-    """API根路径响应"""
-    return {
-        "message": "API根路径正常",
-        "endpoints": [
-            "/api/api_data",
-            "/api/docs",
-            "/api/health"
-        ]
-    }
-
-# 导入应用主模块
-from app.main import app as main_app
-
-# 将主应用的路由添加到此应用
-app.mount("/api", main_app) 
+# 直接运行测试
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(fastapi_app, host="127.0.0.1", port=8000) 
