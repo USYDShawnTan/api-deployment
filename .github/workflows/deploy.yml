@@ -59,23 +59,22 @@ jobs:
           cp -r backend/* merged-project/backend/
           cp -r frontend/* merged-project/frontend/
           cp deployment/vercel.json merged-project/
-          
+
           # 确保app目录存在index.py
           if [ ! -f merged-project/backend/app/index.py ]; then
             echo "创建app/index.py文件"
             mkdir -p merged-project/backend/app
-            cat > merged-project/backend/app/index.py << EOF
-            from app.main import app
-
-            # 为Vercel Serverless Functions导出处理函数
-            # 这是Vercel Python运行时所需的
-            handler = app
-            EOF
+            # 使用不含缩进的方式创建文件
+            echo 'from app.main import app' > merged-project/backend/app/index.py
+            echo '' >> merged-project/backend/app/index.py
+            echo '# 为Vercel Serverless Functions导出处理函数' >> merged-project/backend/app/index.py
+            echo '# 这是Vercel Python运行时所需的' >> merged-project/backend/app/index.py
+            echo 'handler = app' >> merged-project/backend/app/index.py
           fi
-          
+
           # 阻止生成__pycache__目录
           export PYTHONDONTWRITEBYTECODE=1
-          
+
           # 确保有正确的入口文件
           [ -f merged-project/backend/app/main.py ] || echo "WARNING: app/main.py missing!"
           [ -f merged-project/backend/app/index.py ] || echo "WARNING: app/index.py missing!"
