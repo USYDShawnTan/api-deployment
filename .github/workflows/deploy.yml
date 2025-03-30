@@ -35,28 +35,33 @@ jobs:
           cd frontend-repo
           npm install
           npm run build
-          mkdir -p ../public
-          cp -r build/* ../public/
 
       # 克隆后端仓库
       - name: Clone Backend Repository
         run: |
           git clone https://${{ secrets.PAT_TOKEN }}@github.com/USYDShawnTan/api-backend.git backend-repo
 
-      # 设置后端文件结构
-      - name: Setup Backend Files
+      # 设置整合后的部署结构
+      - name: Setup Deployment Structure
         run: |
-          # 创建api目录结构
-          mkdir -p api
-          # 直接复制后端仓库中的所有内容到api目录
-          cp -r backend-repo/* api/
-          # 创建.vercel/project.json文件以指定Python版本
-          mkdir -p .vercel
-          echo '{"projectSettings":{"framework":null,"buildCommand":null,"devCommand":null,"outputDirectory":null,"rootDirectory":null,"installCommand":null,"ignoreCommand":null,"directoryListing":false,"nodeVersion":"18","analyticsId":null,"autoAssignCustomDomains":true,"enableUserLambda":true,"commandForIgnore":null,"devCommandRunsRewriter":null,"functionsRegion":"sin1","functions":{"running":{"runtime":"python3.9","memory":1024,"maxDuration":10}}}}' > .vercel/project.json
-          # 创建requirements.txt备份并确保版本兼容
-          cp api/requirements.txt api/requirements.original.txt
-          # 确保兼容的依赖版本
-          cat > api/requirements.txt << EOF
+          # 创建static目录（如果后端仓库中不存在）
+          mkdir -p backend-repo/static
+          # 复制前端构建的静态文件到后端的static目录
+          cp -r frontend-repo/build/* backend-repo/static/
+          # 确保后端服务于静态文件
+          cat > backend-repo/app/static_files.py << EOF
+from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI
+
+def setup_static_files(app: FastAPI):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+EOF
+          # 修改后端的index.py以包含静态文件服务
+          grep -q "from app.static_files import setup_static_files" backend-repo/app/index.py || echo "from app.static_files import setup_static_files" >> backend-repo/app/index.py
+          grep -q "setup_static_files(app)" backend-repo/app/index.py || echo "setup_static_files(app)" >> backend-repo/app/index.py
+          # 修改requirements.txt确保兼容性
+          cp backend-repo/requirements.txt backend-repo/requirements.original.txt
+          cat > backend-repo/requirements.txt << EOF
 fastapi==0.95.2
 uvicorn==0.22.0
 pydantic==1.10.8
@@ -64,14 +69,16 @@ python-dotenv==1.0.0
 typing-extensions==4.6.3
 starlette==0.27.0
 EOF
-
+      
       # 安装Vercel CLI
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
       # 部署到Vercel
       - name: Deploy to Vercel
-        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd backend-repo
+          vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
