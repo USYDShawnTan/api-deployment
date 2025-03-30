@@ -85,8 +85,14 @@ jobs:
         run: |
           mkdir -p api
           cp -r backend/* api/
-          # 使用我们预先编写的index.py文件替换后端的入口文件
+          # 将入口文件放在api目录中
           cp index.py api/index.py
+          # 为了调试，将index.py也放在根目录
+          cp index.py index.py
+          # 更新requirements.txt确保包含所有依赖
+          echo "fastapi>=0.95.0" >> api/requirements.txt
+          echo "uvicorn>=0.21.1" >> api/requirements.txt
+          echo "python-multipart>=0.0.6" >> api/requirements.txt
         if: github.event.action == 'backend-updated' || github.event.inputs.deploy_type == 'full' || github.event.inputs.deploy_type == 'backend-only'
 
       - name: Install Vercel CLI
