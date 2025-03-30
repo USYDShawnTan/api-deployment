@@ -43,6 +43,15 @@ jobs:
           echo "Commit SHA: ${{ github.event.client_payload.sha || github.sha }}"
           date
 
+      - name: Debug Backend Structure
+        run: |
+          echo "Backend structure:"
+          ls -la backend/
+          ls -la backend/app/ || echo "No app directory"
+          ls -la backend/app/routers/ || echo "No routers directory"
+          echo "Backend entry files:"
+          find backend -name "*.py" -type f | grep -E "index.py|main.py"
+
       - name: Setup Project Structure
         run: |
           mkdir -p merged-project/backend
@@ -50,7 +59,14 @@ jobs:
           cp -r backend/* merged-project/backend/
           cp -r frontend/* merged-project/frontend/
           cp deployment/vercel.json merged-project/
-          ls -la merged-project
+          # 复制自定义入口文件
+          cp deployment/index.py merged-project/backend/
+          # 确保有正确的入口文件
+          [ -f merged-project/backend/app/main.py ] || echo "WARNING: main.py missing!"
+          [ -f merged-project/backend/index.py ] || echo "WARNING: index.py missing!"
+          # 调试输出
+          ls -la merged-project/backend/
+          ls -la merged-project/backend/app/
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
