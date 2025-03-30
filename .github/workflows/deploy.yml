@@ -29,6 +29,13 @@ jobs:
           token: ${{ secrets.PAT_TOKEN }}
           path: frontend
 
+      - name: Checkout Backend Repository
+        uses: actions/checkout@v3
+        with:
+          repository: USYDShawnTan/api-backend
+          token: ${{ secrets.PAT_TOKEN }}
+          path: backend
+
       - name: Log Deployment Details
         run: |
           echo "Deployment triggered by: ${{ github.event_name }}"
@@ -48,7 +55,10 @@ jobs:
           cp deployment/vercel.json merged-project/
           cp deployment/index.py merged-project/
 
-          # 验证前端package.json文件
+          # 复制后端的requirements.txt文件
+          cp backend/requirements.txt merged-project/requirements.txt
+
+          # 验证文件存在
           if [ -f merged-project/frontend/package.json ]; then
             echo "✅ 找到前端package.json文件"
           else
@@ -56,16 +66,14 @@ jobs:
             exit 1
           fi
 
-          # 添加requirements.txt文件 - 包含数据库依赖
-          cat > merged-project/requirements.txt << EOF
-          fastapi==0.95.0
-          uvicorn==0.21.1
-          motor==3.1.1
-          python-dotenv==1.0.0
-          pydantic==2.0.0
-          pydantic-settings==2.0.0
-          starlette==0.27.0
-          EOF
+          if [ -f merged-project/requirements.txt ]; then
+            echo "✅ 找到requirements.txt文件"
+            echo "requirements.txt内容:"
+            cat merged-project/requirements.txt
+          else
+            echo "❌ requirements.txt文件不存在"
+            exit 1
+          fi
 
           # 调试输出
           echo "最终部署文件结构:"
