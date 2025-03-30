@@ -56,10 +56,15 @@ jobs:
             exit 1
           fi
 
-          # 添加requirements.txt文件 - 简化依赖
+          # 添加requirements.txt文件 - 包含数据库依赖
           cat > merged-project/requirements.txt << EOF
           fastapi==0.95.0
           uvicorn==0.21.1
+          motor==3.1.1
+          python-dotenv==1.0.0
+          pydantic==2.0.0
+          pydantic-settings==2.0.0
+          starlette==0.27.0
           EOF
 
           # 调试输出
@@ -71,20 +76,26 @@ jobs:
           echo "前端package.json:"
           cat merged-project/frontend/package.json | grep -E 'name|version|scripts'
 
-      - name: Setup Node.js for Vercel
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel@28.20.0
-
+      # 使用Vercel的官方GitHub Actions进行部署
       - name: Deploy to Vercel
-        run: |
-          cd merged-project
-          vercel deploy --token ${{ secrets.VERCEL_TOKEN }} --prod --yes \
-          -e API_ACCESS_PASSWORD="${{ secrets.API_ACCESS_PASSWORD }}" \
-          -e NODE_ENV="production"
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./merged-project
+          vercel-args: "--prod"
+          alias-domains: api.433200.xyz
+          github-comment: false
+        env:
+          # API安全配置
+          API_ACCESS_PASSWORD: ${{ secrets.API_ACCESS_PASSWORD }}
+          # 环境配置
+          NODE_ENV: production
+          # MongoDB配置
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB_NAME: ${{ secrets.MONGODB_DB_NAME }}
 
       - name: Handle Deployment Failure
         if: failure()
